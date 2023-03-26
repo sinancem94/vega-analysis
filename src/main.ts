@@ -1,18 +1,17 @@
 import { app, BrowserWindow,ipcMain, shell } from "electron";
 import * as path from "path";
-
-//import 'bootstrap/dist/js/bootstrap.bundle';
-//import 'bootstrap';
-//import '../node_modules/bootstrap/dist/css/bootstrap.min.css'
-
 import { AnalysesFlow } from "./flow/AnalysesFlow";
 
 const flow: AnalysesFlow = new AnalysesFlow();
 
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+if (require('electron-squirrel-startup')) {
+  app.quit();
+}
+
 function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    icon: '../img/logo.jpg',
     width: 800,
     height: 600,
     fullscreenable: false, // disable fullscreen
@@ -55,7 +54,6 @@ function createWindow() {
 
   ipcMain.handle('get_column_values_unique', async (event, sheetName, colName) => {
     var filters = flow.GetColumnValuesUnique(sheetName, colName);
-    console.log(filters);
     return filters;
   });
 }

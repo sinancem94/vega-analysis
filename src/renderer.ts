@@ -31,8 +31,8 @@ let selectedSheet: string = null;
 
 ///FLOW ////
 
-const information = document.getElementById('info')
- information.innerText = `This app is using Chrome (v${window.versions.chrome()}), Node.js (v${versions.node()}), and Electron (v${versions.electron()})`;
+//const information = document.getElementById('info')
+//information.innerText = `This app is using Chrome (v${window.versions.chrome()}), Node.js (v${versions.node()}), and Electron (v${versions.electron()})`;
 
 //const startButton = document.getElementById('start-button');
 //startButton.innerHTML = `Import the sheet boss`;
