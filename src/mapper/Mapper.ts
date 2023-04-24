@@ -13,46 +13,60 @@ interface VendorFields {
   vendorName: string,
 }
 
-interface MainFields {
+export interface FilterTableFields {
   sheetName: string,
+  columnName: string,
+  isInclude: boolean,
 }
 
 export interface FilterFields {
   typeFilter: string[],
   currencyFilter: string[],
   vendorFilter: string[],
+  partFilter: string[],
 }
 
-export interface AllMappedFields extends PartFields, VendorFields, MainFields, FilterFields {}
+export interface Fields {
+  sheetName: string;
+  filter: FilterFields;
+  part: PartFields;
+  vendor: VendorFields;
+}
 
 export class FieldMapper {
     
   constructor() {
-    this.main = { sheetName: "" };
     this.vendor = { vendorCode: "", vendorName: "" };
     this.part = { partNumber: "", partDesc: "", partQuantity: "", unitPrices: "", unitCurrency: "", purchaseOrder: "", orderType: "" };
-    this.filter = { typeFilter: [], currencyFilter: [], vendorFilter:[] };
+    this.filter = { typeFilter: [], currencyFilter: [], vendorFilter: [], partFilter: [] };
+    this.filterTable = {sheetName: "", columnName: "", isInclude: true};
   }
 
-  main: MainFields;
+  resetFields() {
+    this.vendor = { vendorCode: "", vendorName: "" };
+    this.part = { partNumber: "", partDesc: "", partQuantity: "", unitPrices: "", unitCurrency: "", purchaseOrder: "", orderType: "" };
+    this.filter = { typeFilter: [], currencyFilter: [], vendorFilter: [], partFilter: [] };
+    this.filterTable = {sheetName: "", columnName: "", isInclude: true};
+  }
+
+  sheetName: string;
   vendor: VendorFields;
   part: PartFields;
   filter: FilterFields;
+  filterTable: FilterTableFields;
 
-  joinedFields(): AllMappedFields {
-    return { ...this.part, ...this.vendor, ...this.main, ...this.filter };
+  joinedFields(): Fields {
+    return {sheetName: this.sheetName, part: this.part, vendor: this.vendor, filter: this.filter};// { part: this.part, ...this.vendor, ...this.main, ...this.filter };
   }
 
   mapFields(form: any) {
-    this.MapMain(form);
+
+    this.resetFields();
+
+    this.sheetName = form.sheet_name[0] ?? this.getDefault();
     this.MapVendor(form);
     this.MapPart(form);
     this.MapFilter(form);
-  }
-
-  MapMain(form: any){
-    this.main.sheetName = form.sheet_name[0] ?? this.getDefault();
-    return this.main;
   }
 
   MapVendor(form: any){
@@ -73,27 +87,47 @@ export class FieldMapper {
   }
 
   MapFilter(form: any){
-    if(form.type_filter){
-      for(let i = 0; i < form.type_filter.length; i++){
-        this.filter.typeFilter.push(form.type_filter[i]);
+
+    for(let filterKey in form){
+      //console.log(filterKey);
+
+      if(this.filter.hasOwnProperty(filterKey)){
+        console.log(form[filterKey]);
+      }
+    }
+
+    if(form.ot_filter){
+      for(let i = 0; i < form.ot_filter.length; i++){
+        this.filter.typeFilter.push(form.ot_filter[i]);
       }
     }
     
-    if(form.currency_filter){
-      for(let i = 0; i < form.currency_filter.length; i++){
-        this.filter.currencyFilter.push(form.currency_filter[i]);
+    if(form.curr_filter){
+      for(let i = 0; i < form.curr_filter.length; i++){
+        this.filter.currencyFilter.push(form.curr_filter[i]);
       }
     }
     
-    if(form.vendor_filter){
-      for(let i = 0; i < form.vendor_filter.length; i++){
-        this.filter.vendorFilter.push(form.vendor_filter[i]);
+    if(form.vc_filter){
+      for(let i = 0; i < form.vc_filter.length; i++){
+        this.filter.vendorFilter.push(form.vc_filter[i]);
       }
     }
     
+    if(form.pn_filter){
+      for(let i = 0; i < form.pn_filter.length; i++){
+        this.filter.partFilter.push(form.pn_filter[i]);
+      }
+    }
+
     return this.filter;
   }
 
+  MapFilterTable(form:any){
+    this.filterTable.sheetName = form.sheet_name[0] ?? this.getDefault();
+    this.filterTable.columnName = form.column_name[0] ?? this.getDefault();
+    this.filterTable.isInclude = form.is_include[0] === "exclude" ? false : true;
+  }
 
   protected getDefault(){
     return "";

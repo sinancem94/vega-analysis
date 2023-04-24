@@ -1,16 +1,24 @@
+import { workbookType } from "./analyser/ExcelParser";
+
 const { contextBridge, ipcRenderer  } = require('electron')
-import $ from "jquery";
+//import * as $ from "jquery";
 
 contextBridge.exposeInMainWorld('versions', {
     node: () => process.versions.node,
     chrome: () => process.versions.chrome,
     electron: () => process.versions.electron,
-    ping: () => ipcRenderer.invoke('ping'),
-    file_upload: () => ipcRenderer.invoke('file_upload'),
-    get_columns: (sheetName: any) => ipcRenderer.invoke('get_columns', sheetName),
+    
+    //flow functions
+    xlsx_upload: (wbType: workbookType, filePath: any) => ipcRenderer.invoke('xlsx_upload', wbType, filePath),
+    filter_from_table: (filter_map: any, main_table_col: any) => ipcRenderer.invoke('filter_from_table', filter_map, main_table_col),
     parts_analyse: (parts_map: any) => ipcRenderer.invoke('parts_analyse', parts_map),
-    save_results: () => ipcRenderer.invoke('save_results'),
-    get_column_values_unique: (sheetName: any, colName: any) => ipcRenderer.invoke('get_column_values_unique', sheetName, colName),
+    save_results: (table_name: string) => ipcRenderer.invoke('save_results', table_name),
+    
+    //get functions
+    get_sheets_on_workbook: (wbType: workbookType) => ipcRenderer.invoke('get_sheets_on_workbook', wbType),
+    get_columns_on_sheet: (wbType: workbookType, sheetName: any) => ipcRenderer.invoke('get_columns_on_sheet', wbType, sheetName),
+    get_values_on_column: (wbType: workbookType, sheetName: any, colName: any) => ipcRenderer.invoke('get_values_on_column', wbType, sheetName, colName),
+
     // we can also expose variables, not just functions
 })
 

@@ -1,15 +1,15 @@
 import * as ExcelJS from 'exceljs';
 const {Part} = require("./../objects/Part");
-import { Analyser, PartAnalysis, PartsAnalysisResult } from "./Analyser";
-import { AllMappedFields, FilterFields } from "./../mapper/Mapper"
+import { TableAnalyser, PartAnalysisResult, AnalysisResult } from "./TableAnalyser";
+import { FilterFields, Fields } from "./../mapper/Mapper"
 
-export class PartAnalyser extends Analyser{
+export class PartAnalyser extends TableAnalyser{
 
     parts: typeof Part[] | null;
-    analysisResult: PartsAnalysisResult;
+    declare analysisResult: AnalysisResult;
 
-    constructor() {
-        super();
+    constructor(worksheet: ExcelJS.Worksheet) {
+        super(worksheet);
         this.parts = null;
         this.analysisResult = {
             success: false,
@@ -32,131 +32,114 @@ export class PartAnalyser extends Analyser{
           };
     }
 
-    getResultColumnNames(): string[] {
-        return ["PN", "Part Description", "Vendor Code", "Vendor Name", "Quantity", "Total Quantity", "Price", "Total Price", "Currency", "Related POs", "Order Type"];
-    }
-
-    analyze(fields: AllMappedFields): PartsAnalysisResult {
+    analyze(fields: Fields): AnalysisResult {
         
-        this.setFields(fields);
-
-        var partNoColNum = this.getColumnNumberOfField(this.fields.partNumber);
-        const uniquePNs = this.getUniqueValuesWithCount(Number(partNoColNum));
+        var partNoColNum = this.getColumnNumberOfField(fields.part.partNumber);
+        const uniquePNs = this.getUniqueValuesWithRows(Number(partNoColNum));
         
-        for(const key in uniquePNs)
-        {
+        uniquePNs.forEach((partTable) => {
             const rows: any[] = [];
+            partTable.rowIndexes.forEach((index) => {
+                const row = this.worksheet.getRow(index);
+                rows.push(row);
+            });
+            
+            let filters: FilterFields = fields.filter;
+            var analysis = this.analyzeRows(fields, rows, filters);
 
-            var found = 0;
-            const rowCount = this.worksheet.rowCount;
-            for (let i = 2; i <= rowCount; i++) {
-                const row = this.worksheet.getRow(i);
-                const columnValue = row.getCell(Number(partNoColNum)).value;
+            if (analysis.partNo != ""){
 
-                if (columnValue == key) {
-                    rows.push(row);
-                    found++;
-                }
-
-                if (found >= uniquePNs[key]) {
-                    let filters: FilterFields = { typeFilter: this.fields.typeFilter, currencyFilter: this.fields.currencyFilter, vendorFilter: this.fields.vendorFilter};
-                    var analysis = this.analyzeRows(rows, filters);
-
-                    if (analysis.partNo != ""){
-
-                        this.analysisResult.parts.push(analysis);
-
-                        for(const cur in analysis.prices){
-
-                            let totalVol = 0;
-                            analysis.prices[cur].forEach(price => {
-                                totalVol += price;
-                            });
-
-                            if(this.analysisResult.totalVolume[cur]){
-                                this.analysisResult.totalVolume[cur] += totalVol;
-                            }
-                            else{
-                                this.analysisResult.totalVolume[cur] = totalVol;
-                            }
-                        }
-                    }
-
-                    
-                    break;
-                }
+                this.analysisResult.parts.push(analysis);
             }
-        }
-        this.analysisResult.uniqueVendorCount = (this.fields.vendorFilter.length > 0) ? this.fields.vendorFilter.length : this.getUniqueValuesOnColumn(Number(this.getColumnNumberOfField(this.fields.vendorCode))).length;
+
+        });
+        
+        this.analysisResult.uniqueVendorCount = Object.keys(this.analysisResult.parts.reduce((vendors, part) => ({ ...vendors, ...part.vendors }), {})).length;
+        //this.getUniqueValuesOnColumn(Number(this.getColumnNumberOfField(fields.vendor.vendorCode))).length;
         this.analysisResult.uniquePartCount = this.analysisResult.parts.length;// Object.keys(uniquePNs).length;
         this.analysisResult.success = true;
         return this.analysisResult;
     }
 
-    protected analyzeRows(rows: ExcelJS.Row[], filters: FilterFields): PartAnalysis {
+    protected analyzeRows(fields: Fields, rows: ExcelJS.Row[], filters: FilterFields): PartAnalysisResult {
 
-        var partNoColNum = this.getColumnNumberOfField(this.fields.partNumber);
-        var partDescColNum = this.getColumnNumberOfField(this.fields.partDesc);
-        var partQtyColNum = this.getColumnNumberOfField(this.fields.partQuantity);
-        var unitPriceColNum = this.getColumnNumberOfField(this.fields.unitPrices);
-        var unitCurrColNum = this.getColumnNumberOfField(this.fields.unitCurrency);
-        var purchaseOrderColNum = this.getColumnNumberOfField(this.fields.purchaseOrder);
-        var orderTypeColNum = this.getColumnNumberOfField(this.fields.orderType);
-        var vendorCodeColNum = this.getColumnNumberOfField(this.fields.vendorCode);
-        var vendorNameColNum = this.getColumnNumberOfField(this.fields.vendorName);
+        var partNoColNum = this.getColumnNumberOfField(fields.part.partNumber);
+        var partDescColNum = this.getColumnNumberOfField(fields.part.partDesc);
+        var partQtyColNum = this.getColumnNumberOfField(fields.part.partQuantity);
+        var unitPriceColNum = this.getColumnNumberOfField(fields.part.unitPrices);
+        var unitCurrColNum = this.getColumnNumberOfField(fields.part.unitCurrency);
+        var purchaseOrderColNum = this.getColumnNumberOfField(fields.part.purchaseOrder);
+        var orderTypeColNum = this.getColumnNumberOfField(fields.part.orderType);
+        var vendorCodeColNum = this.getColumnNumberOfField(fields.vendor.vendorCode);
+        var vendorNameColNum = this.getColumnNumberOfField(fields.vendor.vendorName);
 
-        var analysisRes: PartAnalysis = {
+        var analysisRes: PartAnalysisResult = {
             partNo: "", partDesc: "", quantities: [],
             purchaseOrders: {}, prices: {}, vendors: {}       
         };
 
+        let partNo = rows[0].getCell(Number(partNoColNum)).value as string;
+        if ((filters.partFilter.length > 0 && filters.partFilter.every(pn => {return pn !== partNo;}))){
+            return analysisRes;
+        }
+
         for(let i = 0; i < rows.length; i++){
             var row = rows[i];
 
-            var orderType = row.getCell(Number(orderTypeColNum)).value as string;
-            var currency = row.getCell(Number(unitCurrColNum)).value as string;
-            var vendorName = row.getCell(Number(vendorNameColNum)).value as string;
+            //analysisRes.partNo = row.getCell(Number(partNoColNum)).value as string;
+            var partDesc = row.getCell(Number(partDescColNum)).value as string;
+            var vendorCode = row.getCell(Number(vendorCodeColNum)).value as string;
+
+            var orderType = orderTypeColNum ? (row.getCell(Number(orderTypeColNum)).value as string) : "?";
+            orderType = orderType ? orderType : "?";
+            var currency = unitCurrColNum ? (row.getCell(Number(unitCurrColNum)).value as string) : "?";
+            currency = currency ? currency : "?";
+            var vendorName = vendorNameColNum ? (row.getCell(Number(vendorNameColNum)).value as string) : "?";
 
             //check filters
-            if( (filters.typeFilter.length > 0 && filters.typeFilter.every(t => {return t !== orderType;})) || 
+            if( (filters.typeFilter.length > 0 && filters.typeFilter.every(ot => {return ot !== orderType;})) || 
                 (filters.currencyFilter.length > 0 && filters.currencyFilter.every(c => {return c !== currency;})) ||
-                (filters.vendorFilter.length > 0 && filters.vendorFilter.every(v => {return v !== vendorName;})) ) {
+                (filters.vendorFilter.length > 0 && filters.vendorFilter.every(vc => {return vc !== vendorCode;}))) {
                     
                     continue;
             }
 
-
-            analysisRes.partNo = row.getCell(Number(partNoColNum)).value as string;
-            analysisRes.partDesc = row.getCell(Number(partDescColNum)).value as string;
-
+            analysisRes.partNo = partNo;
+            analysisRes.partDesc = partDesc;
+            
             var qty = row.getCell(Number(partQtyColNum)).value as number;
             analysisRes.quantities.push(qty);
             
+            if(unitPriceColNum){
+                
+                var price = row.getCell(Number(unitPriceColNum)).value as number;
+                
+                if(currency){
+                    if (analysisRes.prices[currency]){
+                        analysisRes.prices[currency].push(price);
+                    }
+                    else{
+                        analysisRes.prices[currency] = [price];
+                    }
+                }
+            }
             
-            var price = row.getCell(Number(unitPriceColNum)).value as number;
+            var purchaseOrder = purchaseOrderColNum ? (row.getCell(Number(purchaseOrderColNum)).value as string) : "?";
+
+            if(orderType){
+                if(analysisRes.purchaseOrders[orderType]){
+                    analysisRes.purchaseOrders[orderType].push(purchaseOrder);
+                }
+                else{
+                    analysisRes.purchaseOrders[orderType] = [purchaseOrder];
+                }
+            }
             
-            if (analysisRes.prices[currency]){
-                analysisRes.prices[currency].push(price);
-            }
-            else{
-                analysisRes.prices[currency] = [price];
-            }
-
-            var purchaseOrder = row.getCell(Number(purchaseOrderColNum)).value as string;
-
-            if(analysisRes.purchaseOrders[orderType]){
-                analysisRes.purchaseOrders[orderType].push(purchaseOrder);
-            }
-            else{
-                analysisRes.purchaseOrders[orderType] = [purchaseOrder];
-            }
-
-            var vendorCode = row.getCell(Number(vendorCodeColNum)).value as string;
             if (analysisRes.vendors[vendorCode]){
-                analysisRes.vendors[vendorCode][1]++;
+                analysisRes.vendors[vendorCode].push(vendorName);
             }
             else{
-                analysisRes.vendors[vendorCode] = [vendorName, 1];
+                analysisRes.vendors[vendorCode] = [vendorName];
             }
         }
 

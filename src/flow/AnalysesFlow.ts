@@ -4,11 +4,14 @@ import { dialog } from 'electron';
 //import axios from 'axios';
 
 import { PartAnalyser } from "./../analyser/PartAnalyser";
-import { ExcelParser } from './../analyser/ExcelParser';
+import { ExcelParser, workbookType } from './../analyser/ExcelParser';
 import { FieldMapper } from './../mapper/Mapper';
+import { TableAnalyser } from '../analyser/TableAnalyser';
+import { TableWriter } from '../analyser/TableWriter';
 
 export class AnalysesFlow{
 
+    filePath: string;
     parser: ExcelParser;
     mapper: FieldMapper;
     partAnalyser: PartAnalyser;
@@ -16,12 +19,11 @@ export class AnalysesFlow{
     constructor() {
       this.mapper  = new FieldMapper();
       this.parser = new ExcelParser();
-
-      this.partAnalyser = new PartAnalyser();
     }
 
-    FileUpload = async function (): Promise<string[]> {
-      const result = await dialog.showOpenDialog({
+    WorkbookUpload = async function (wbtype: workbookType, filePath: string): Promise<boolean> {
+      
+      /*const result = await dialog.showOpenDialog({
         title: 'Select a file',
         properties: ['openFile'],
         filters: [
@@ -46,88 +48,120 @@ export class AnalysesFlow{
         await this.parser.parse(filePath, extension);
       }).catch((err: Error) => {
         console.log('Error:', err);
-      })
-      return this.parser.getSheetNames();
-    }
+      })*/
+      
+      this.filePath = filePath;
+      const extension = path.extname(this.filePath);
 
+      if(extension != '.xlsx' && extension != '.csv'){
+        dialog.showMessageBoxSync({
+          type: 'error',
+          message: 'Only allowed .xlsx and .csv',
+          title: 'Invalid ext',
+          buttons: ['OK']
+        });
+        return false;
+      }
 
-    SetWorksheet = async function(sheetName: string): Promise<boolean> {
-      this.partAnalyser.setWorksheet(this.parser.getExcelSheet(sheetName));
+      await this.parser.parse(wbtype, this.filePath, extension);
       return true;
     }
 
-    GetSheetColumns = async function (sheetName: string): Promise<string[]> {
-      return this.parser.getColumnsForSheet(sheetName);
+    GetSheetsOnWorkbook = async function (workbookIndex: workbookType): Promise<string[]> {
+      return this.parser.getTableNames(workbookIndex);
     }
 
-    GetColumnValuesUnique = async function (sheetName: string, colName: string): Promise<string[]> {
-      
-      let colNum = this.partAnalyser.getColumnNumberOfField(colName);
-      let values = this.partAnalyser.getUniqueValuesOnColumn(colNum);
+    GetSheetColumns = async function (workbookIndex: workbookType, sheetName: string): Promise<string[]> {
+      return this.parser.getColumnsForTable(workbookIndex, sheetName);
+    }
+
+    GetColumnValues = async function (workbookIndex: workbookType, sheetName: string, colName: string): Promise<string[]> {
+      let tempAnalyser = new TableAnalyser(this.parser.getExcelTable(workbookType.main, sheetName));
+      let colNum = tempAnalyser.getColumnNumberOfField(colName);
+      let values = tempAnalyser.getValuesOnColumn(colNum);
       
       return values;
     }
 
-    AnalysedMappedFields = async function name(parts_map: any): Promise<any> {
+    FilterFromTable = async function(filter_map: any, mainSheetCol: string): Promise<string[]> {
+
+      this.mapper.MapFilterTable(filter_map);
+      let filterFields = this.mapper.filterTable;
+
+      let filterAnalyser = new TableAnalyser(this.parser.getExcelTable(workbookType.filter, filterFields.sheetName));
+      
+      let allValues = this.partAnalyser.getUniqueValuesOnColumn(this.partAnalyser.getColumnNumberOfField(mainSheetCol));
+      let filterTableVals = filterAnalyser.getUniqueValuesOnColumn(filterAnalyser.getColumnNumberOfField(filterFields.columnName));
+
+      let unfilteredVals: string[] = [];
+
+      allValues.forEach(function (val: string){
+        if((filterTableVals.includes(val) && filterFields.isInclude) || (!filterTableVals.includes(val) && !filterFields.isInclude)){
+          unfilteredVals.push(val);
+        }
+      });
+      
+      return unfilteredVals;
+    }
+
+    Analyse = async function name(parts_map: any): Promise<any> {
     
       this.mapper.mapFields(parts_map);
       let fields = this.mapper.joinedFields();
 
-      this.partAnalyser.reset();
+      this.partAnalyser = new PartAnalyser(this.parser.getExcelTable(workbookType.main, fields.sheetName));
       var analyseRes = this.partAnalyser.analyze(fields);
       return analyseRes;
     }
 
-    SaveAnalysisResult = async function (): Promise<string> {
+    SaveAnalysisResult = async function (table_name: string): Promise<string> {
 
-      this.parser.createSheetOnWorkbook("Part Analysis", this.partAnalyser.getResultColumnNames());
-        var parts: any[] = [];
-        for(let i = 0; i < this.partAnalyser.analysisResult.parts.length; i++){
-          
-          let colorGray = (i % 2 === 1) ? true : false;
-          this.parser.addPartToAnalysisSheet("Part Analysis", this.partAnalyser.analysisResult.parts[i], colorGray);
-        }
+      let writer = new TableWriter(this.parser.workbooks[workbookType.main]);
+      
+      if(table_name.length > 22){
+        table_name = table_name.slice(0, 18) + "...";
+      }
 
-        const defaultPath = this.parser.filePath;
-        const options: Electron.SaveDialogOptions = {
-          title: 'Save File',
-          defaultPath: defaultPath, // Specify a default file name and extension
-          filters: [{ name: 'Excel', extensions: ['xlsx'] }] // Specify the file types that should be shown in the dialog
-        };
+      let tableName = table_name + " Analysis";
+      
+      writer.createSheetOnWorkbook(tableName, writer.getResultColumnNames());
+
+      for(let i = 0; i < this.partAnalyser.analysisResult.parts.length; i++){
         
-        const { filePath, canceled } = await dialog.showSaveDialog(options);
-        if (!canceled && filePath) {
-          // The user selected a file path, so you can save the file to that location
-          const saveRes = await this.parser.saveWorkbook(filePath);
-          if(!saveRes){
-            dialog.showMessageBoxSync({
-              type: 'error',
-              message: 'Kaydemedi, excel kapali mi bi bak bakam',
-              title: 'sorry',
-              buttons: ['<3', 'tabi canim benim']
-            });
-          }
-        }
+        let colorGray = (i % 2 === 1) ? true : false;
+        writer.addPartToAnalysisSheet(tableName, this.partAnalyser.analysisResult.parts[i], colorGray);
+      }
 
-        return String(filePath);
+      const saveRes = await writer.saveWorkbook(this.filePath);
+      if(!saveRes){
+        dialog.showMessageBoxSync({
+          type: 'error',
+          message: 'Kayıt başarısız, excel tablosu açık olabilir mi?',
+          title: 'Save error',
+          buttons: ['OK']
+        });
+        return "";
+      }
+      /*const options: Electron.SaveDialogOptions = {
+        title: 'Save File',
+        defaultPath: defaultPath, // Specify a default file name and extension
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }] // Specify the file types that should be shown in the dialog
+      };
+      
+      const { filePath, canceled } = await dialog.showSaveDialog(options);
+      if (!canceled && filePath) {
+        // The user selected a file path, so you can save the file to that location
+        const saveRes = await writer.saveWorkbook(filePath);
+        if(!saveRes){
+          dialog.showMessageBoxSync({
+            type: 'error',
+            message: 'Kayıt başarısız, excel tablosu açık olabilir mi?',
+            title: 'Save error',
+            buttons: ['OK']
+          });
+        }
+      }*/
+
+      return String(this.filePath);
     }
-
-    /*SearchCommerce = async function(){
-      const searchQuery = '2LA456342-04'; // Replace with your actual search query
-      //const payload = {  your payload object  }; // Replace with your actual payload object
-
-      const url = 'https://ecommerce.aircostcontrol.com/search'; // The search endpoint URL on the website
-
-      axios.post(url, {
-        params: {
-          search_query: searchQuery
-        }
-      }).then(response => {
-        console.log(response.data); // Replace with your desired code to handle the response data
-      }).catch(error => {
-        console.error(error); // Replace with your desired code to handle errors
-      });
-    }*/
 }
-
-//module.exports = AnalysesFlow;

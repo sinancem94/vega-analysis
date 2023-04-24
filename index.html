@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
     <title>Vega Analysis</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <!--<meta
@@ -16,60 +18,205 @@
   <link rel="stylesheet" href="index.css">
 
   <body>
+    
+    
 
     <div class="row">
       <div class="col-md-6 how-img border-right">
-          <img src="./img/melo.jpg" class="img-fluid" alt="guzel insan" href="#" onclick="file_upload()"/>
+          <img src="./img/vega_full_logo.png" class="rounded bg-white img-fluid" alt="vega logo"/>
       </div>
       <div class="col-md-6">
-          <h4 id="head-title" class="text-left">Vega Analysis Tool</h4>           
-          <p class="app-title small text-right">Dağdaki sonbahar ağacının yaprakları altında saklı ve usulca akan bir dere gibi, yüzeyden göremesen de seni derinden seven benim, senin beni sevdiğinden fazla.</p>
+          <h2 id="head-title" class="text-center">Analysis Tool</h2>     
+          <h4>Instructions</h4>
+          <ul>
+            <li class="small">Load a excel table to dropdown below. Make sure you have set all necessary columns set up before.
+              <span style="color:red;">First row of table must be field names</span>
+            </li>
+            <li class="small">Select the table that you want to analyse from the list</li>
+            <li class="small">Check the options table on right, make sure all fields are filled correctly from the table</li>
+            <li class="small">If mandatory fields are set, you can add filters in the right table</li>
+          </ul>
+      
+          <!--<p class="app-title small text-right">Dağdaki sonbahar ağacının yaprakları altında saklı ve usulca akan bir dere gibi, yüzeyden göremesen de seni derinden seven benim, senin beni sevdiğinden fazla.</p>-->
         
           <div>
             <label id="choose-text" class="form-label"></label>
-            <!--<input class="form-control form-control-lg" id="input-sheet" type="file">
-            <button id="start-button" onclick="file_upload()" type="button" class="btn btn-primary"></button>-->
+
           </div>
       
       </div>
 
     </div>
 
-    <hr class="hr"/>
-    
-    <div id="analysis-messages">
-    </div>
-    <br>
-    <div id="analysis-table" class="row-vega row-vega-gray justify-content-md-left">
-        <div id="analysis-field-selection">
-
+    <hr class="hr-vega"/>
+    <div>
+      <div class="row">
+        <div class="drop-zone">
+          <span class="drop-zone__prompt"></span>
+          <input type="file" name="myFile" class="drop-zone__input">
         </div>
-        <div id="analysis-field-filters">
+        <div id="analysis-messages"></div>
+      </div>
+      
+      <br>
+      <div id="analysis-table" class="row-vega justify-content-md-left">
+          <div id="analysis-field-selection"></div>
+          <div id="analysis-field-filters"></div>
+      </div>
+  
+      <!--<p id="sheet-text" class="small text-muted"></p>  -->
+      <div id="sheet-table" class="row-vega-sheet justify-content-md-center">
+      </div>
+    </div>
+
+
+    <div id="popup-filter" style="display:none">
+      <button id="close-filter" type="button" class="close" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <h1>Filter by table</h1>
+      <form>
+        <div class="col">
+          <div class="row">
+            <div class="col px-md-5 drop-zone filter">
+              <span class="drop-zone__prompt"></span>
+              <input type="file" name="myFile" class="drop-zone__input">
+            </div>
+            <div class="col px-md-5" id="filter_col_messsage">
+              
+            </div>
+          </div>
           
+          <br>
+          <div id="filter-sheet-table" class="row-vega-sheet justify-content-md-center">
+          </div>
         </div>
+        
+        <br>
+        <button class="btn-success" type="submit">Submit</button>
+      </form>
     </div>
 
-    <!--<p id="sheet-text" class="small text-muted"></p>  -->
-    <div id="sheet-table" class="row-vega row-vega-gray justify-content-md-center">
-    </div>
 
-    <hr class="hr"/>
-
+    <hr class="hr-vega"/>
+    
     <footer class="footer">
-      <div class="footer-copyright text-left py-1">© 2023 Copyright:
-        <a href="https://www.vegaaviation.com/"> Vega </a> <!--<p class="fs-6" id="info">--></p>
+      <div class="footer-copyright text-left" style="color:black;">© 2023 Copyright:
+        <a href="#"> Vega </a> <!--<p class="fs-6" id="info">--></p>
       </div>
     </footer>
-
+    
+    
+    <br>
+    <br>
+    <br>
     <!--<h1>Hello World!</h1>
     We are using Node.js <span id="node-version"></span>, Chromium
     <span id="chrome-version"></span>, and Electron
     <span id="electron-version"></span>.-->
 
     <!-- You can also require other files to run in this process -->
-    <!--<script>
-      require("./dist/renderer.js");
-    </script>-->
+
     <script src="./dist/renderer.js"></script>
+    <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./node_modules/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+    <script>
+
+      document.querySelectorAll(".drop-zone__input").forEach((inputElement) => {
+        const dropZoneElement = inputElement.closest(".drop-zone");
+        const dropZonePrompt = dropZoneElement.getElementsByClassName("drop-zone__prompt")[0];
+
+        inputElement.setAttribute('accept', acceptedExts);
+
+        let txt = document.createTextNode(dropzoneText);
+        dropZonePrompt.appendChild(txt);
+
+        dropZoneElement.addEventListener("click", (e) => {
+          inputElement.click();
+        });
+      
+        inputElement.addEventListener("change", (e) => {
+          if (inputElement.files.length) {
+            let file = inputElement.files[0];
+            let isMain = dropZoneElement.classList.contains('filter') ? 'pn_filter' : 'main';
+            file_upload(file.path, isMain); //from renderer.ts
+            updateThumbnail(dropZoneElement, file);
+          }
+        });
+      
+        dropZoneElement.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropZoneElement.classList.add("drop-zone--over");
+        });
+      
+        ["dragleave", "dragend"].forEach((type) => {
+          dropZoneElement.addEventListener(type, (e) => {
+            dropZoneElement.classList.remove("drop-zone--over");
+          });
+        });
+      
+        dropZoneElement.addEventListener("drop", (e) => {
+          e.preventDefault();
+
+          if (e.dataTransfer.files.length) {
+            inputElement.files = e.dataTransfer.files;
+            let file = e.dataTransfer.files[0];
+            let isMain = dropZoneElement.classList.contains('filter') ? 'pn_filter' : 'main';
+            file_upload(file.path, isMain); //from renderer.ts
+            updateThumbnail(dropZoneElement, file);
+          }
+      
+          dropZoneElement.classList.remove("drop-zone--over");
+        });
+      });
+      
+      /**
+       * Updates the thumbnail on a drop zone element.
+       *
+       * @param {HTMLElement} dropZoneElement
+       * @param {File} file
+       */
+      function updateThumbnail(dropZoneElement, file) {
+        let thumbnailElement = dropZoneElement.querySelector(".drop-zone__thumb");
+      
+        // First time - remove the prompt
+        if (dropZoneElement.querySelector(".drop-zone__prompt")) {
+          let prompt = dropZoneElement.querySelector(".drop-zone__prompt"); //.remove();
+          let txt = prompt.childNodes[0];
+          txt.nodeValue = file.name;
+          txt.nodeName = file.name;
+        }
+      
+        // First time - there is no thumbnail element, so lets create it
+        /*if (!thumbnailElement) {
+          thumbnailElement = document.createElement("div");
+          thumbnailElement.classList.add("drop-zone__thumb");
+          dropZoneElement.appendChild(thumbnailElement);
+        }
+      
+        thumbnailElement.dataset.label = file.name;*/
+        /*fetch(image).then((res) => {
+          res.blob().then((blob) => {
+            // please change the file.extension with something more meaningful
+            // or create a utility function to parse from URL
+            const imageFile = new File([blob], 'excel_logo.png', {type: blob.type})
+            resolve(imageFile)
+          })
+        });*/
+        //thumbnailElement.style.backgroundImage = `url('/img/excel_logo.png')`;
+        // Show thumbnail for image files
+        /*if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            thumbnailElement.style.backgroundImage = `url('${reader.result}')`;
+          };
+        } else {
+          thumbnailElement.style.backgroundImage = null;
+        }*/
+      }
+    </script>
   </body>
 </html>

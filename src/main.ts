@@ -12,14 +12,14 @@ if (require('electron-squirrel-startup')) {
 function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
     fullscreenable: false, // disable fullscreen
     //resizable: false,
     maximizable: false,
     //minimizable: false,
     webPreferences: {
-      nodeIntegration: true,
+      //nodeIntegration: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
@@ -28,34 +28,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "../index.html"));
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
-
-  ipcMain.handle('file_upload', async (event) => {
-    return flow.FileUpload();
-  });
-
-  ipcMain.handle('get_columns', async (event, sheetName) => {
-    flow.SetWorksheet(sheetName);
-    return flow.GetSheetColumns(sheetName);
-  });
-
-  ipcMain.handle('parts_analyse', async (event, parts_map) => {
-    return flow.AnalysedMappedFields(parts_map);
-  });
-
-  ipcMain.handle('save_results', async (event) => {
-    var saved_path = await flow.SaveAnalysisResult();
-    saved_path = path.normalize(saved_path).replace(/\\/g, '/');
-    if(saved_path.length > 1){
-      shell.openPath(`file://${saved_path}`);
-    }
-    return saved_path;
-  });
-
-  ipcMain.handle('get_column_values_unique', async (event, sheetName, colName) => {
-    var filters = flow.GetColumnValuesUnique(sheetName, colName);
-    return filters;
-  });
+  //mainWindow.webContents.openDevTools();
 }
 
 // This method will be called when Electron has finished
@@ -80,6 +53,45 @@ app.on("window-all-closed", () => {
   }
 });
 
+ipcMain.handle('xlsx_upload', async (event, wbType, filePath) => {
+  if (await flow.WorkbookUpload(wbType, filePath))
+  {
+    return flow.GetSheetsOnWorkbook(wbType);
+  }
+  return null;
+});
+
+ipcMain.handle('filter_from_table', async (event, filter_map, main_table_col)=> {
+  let res = flow.FilterFromTable(filter_map, main_table_col);
+  return res;
+});
+
+ipcMain.handle('parts_analyse', async (event, parts_map) => {
+  return flow.Analyse(parts_map);
+});
+
+ipcMain.handle('save_results', async (event, table_name) => {
+  var saved_path = await flow.SaveAnalysisResult(table_name);
+  saved_path = path.normalize(saved_path).replace(/\\/g, '/');
+  if(saved_path.length > 1){
+    shell.openPath(`file://${saved_path}`);
+  }
+  return saved_path;
+});
+
+ipcMain.handle('get_sheets_on_workbook', async (event, wbType) => {
+  return flow.GetSheetsOnWorkbook(wbType);
+});
+
+ipcMain.handle('get_columns_on_sheet', async (event, wbtype, sheetName) => {
+  return flow.GetSheetColumns(wbtype, sheetName);
+});
+
+ipcMain.handle('get_values_on_column', async (event, wbType, sheetName, colName) => {
+  var filters = flow.GetColumnValues(wbType, sheetName, colName);
+  return filters;
+});
+
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
 declare global {
@@ -89,11 +101,14 @@ declare global {
           chrome: () => string,
           electron: () => string,
           ping: () => Promise<any>,
-          file_upload: () => Promise<string[]>,
-          get_columns: (sheetName: any) => Promise<string[]>,
+          xlsx_upload: (wbType: any, filePath: any) => Promise<string[]>,
+          filter_from_table: (filter_map: any, main_table_col: any) => Promise<string[]>,
           parts_analyse: (parts_map: any) => Promise<any>,
-          save_results: () => Promise<any>,
-          get_column_values_unique: (sheetName: any, colName: any) => Promise<string[]>
+          save_results: (table_name: string) => Promise<any>,
+
+          get_values_on_column: (wbType: any, sheetName: any, colName: any) => Promise<string[]>,
+          get_columns_on_sheet: (wbType: any, sheetName: any) => Promise<string[]>,
+          get_sheets_on_workbook: (wbType: any) => Promise<string[]>
       }
   }
 };

@@ -1,44 +1,181 @@
 @import './node_modules/bootstrap/dist/css/bootstrap.min.css';
+@import './node_modules/bootstrap-select/dist/css/bootstrap-select.min.css';
 
-.body {
+body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
     Arial, sans-serif;
   margin: auto;
-  max-width: 38rem;
+  /*max-width: 38rem;*/
   padding: 2rem;
+  background-color: #002060;
+  color: #ebebed;
+}
+
+.hr-vega {
+  border-top: 1px solid whitesmoke;
 }
 
 .row-vega {
-    display: flex;
-  }
+  display: flex;
+}
+
+.row-vega > div {
+  flex: 1;
+  background: #002060;
+  border: 1px solid #ebebed;
+}
   
-  .row-vega > div {
-    flex: 1;
-    background: white;
-    border: 1px solid gray;
-  }
-  
-  .row-vega-red > div {
-    background: red;
-  }
-  
-  .row-vega-gray > div {
-    background: lightgray;
-  }
-  
-  .row-vega-blue > div {
-    background: blue;
-  }
-  
-  .footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background-color: #f5f5f5;
-  }
-  
-  /* Space out content in the footer */
-  .footer .container {
-    padding-top: 20px;
-    padding-bottom: 20px;
-  }
+.row-vega-red > div {
+  background: red;
+}
+
+.row-vega-gray > div {
+  background: lightgray;
+}
+
+.row-vega-blue > div {
+  background: blue;
+}
+
+.row-vega-sheet {
+  display: flex;
+  cursor: pointer;
+}
+
+.row-vega-sheet > div {
+  flex: 1;
+  background: #002060;
+  border: 1px solid #ebebed;
+}
+
+.vega-sheet-select:hover {
+  background-color: #2d53a0;
+}
+
+/*.col-vega-selection > div {
+  width: 100%;
+  display: block;
+  background: #002060;
+  border: 1px solid #ebebed;
+}*/
+
+select option[value=exclude] { 
+  background-color: rgb(184, 40, 40);
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 93.4%;
+  background-color: #ebebed;
+}
+
+/* Space out content in the footer */
+.footer .container {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+div.vega-select {
+  width: 100%;
+  height: 50px;
+}
+
+.bootstrap-select {
+  max-width: 200px;
+}
+
+.bootstrap-select .btn {
+  position: relative;
+  float: right;
+  font-weight: 200;
+  font-size: 16px;
+}
+
+#popup-filter {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 400px;
+  background-color: #434447;
+  border: 1px solid #ffffff;
+  padding: 20px;
+  display: none;
+}
+
+#close-filter {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 25px;
+  color: #ebebed;
+  /*font-weight: lighter;
+  color: white;
+  background-color: red;
+  border: none;*/
+  cursor: pointer;
+}
+
+.parse-options {
+  padding: 10px;
+}
+
+.filter-options {
+  padding: 10px; 
+  background-color: #434447;
+  width: 100%;
+  height: 100%;
+}
+
+.drop-zone {
+  width: 250px;
+  height: 150px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: "Quicksand", sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  color: #ebebed;
+  border: 4px dashed #009578;
+  border-radius: 10px;
+  overflow:auto;
+}
+
+.drop-zone--over {
+  border-style: solid;
+}
+
+.drop-zone__input {
+  display: none;
+}
+
+.drop-zone__thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #ebebed;
+  background-size: cover;
+  position: relative;
+  background-image: url('./img/excel_logo.jpg');
+}
+
+.drop-zone__thumb::after {
+  content: attr(data-label);
+  background-image: url('./img/excel_logo.jpg');
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 5px 0;
+  color: #ebebed;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 14px;
+  text-align: center;
+}

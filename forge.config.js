@@ -1,6 +1,12 @@
+
+let icon = './img/vega_logo.icns';
+if (process.platform !== "darwin") {
+  icon = './img/vega_logo.ico';
+}
+
 module.exports = {
   packagerConfig: {
-    icon: './img/vega.ico', // no file extension required
+    icon: icon, // no file extension required
   },
   rebuildConfig: {},
   makers: [

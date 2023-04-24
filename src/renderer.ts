@@ -15,188 +15,318 @@ class AnalysisStage {
     static SelectFields = "SelectFields";
     static Analyzed = "Analyzed";
     static Exported = "Exported";
-}
+};
 
-
-const versions = window.versions;
-const available_formats = [ ".xlsx", ".csv"];
-const select_fields: FieldMap = {'part_number':["part number", "pn"], 'part_description':["part description", "part desc", "description", "desc"], 'part_quantity':["part quantity", "part qty", "quantity", "qty"], 
+//const versions = window.versions;
+const available_formats = [ ".xlsx"];
+const select_fields: FieldMap = {'part_number':["part number", "part no", "pn"], 'part_description':["part description", "part desc", "description", "desc"], 'part_quantity':["part quantity", "part qty", "quantity", "qty"], 
                 'unit_prices':["part price", "unit price", "price"], 'unit_currency': ["currency", "curr", "cur"],
-                'vendor_code':["vendor code", "vendor"], 'vendor_name':["vendor name", "vendor"], 
-                'purchase_order':["purchase order", "po no"], 'order_type':["order type", "po"]};
+                'vendor_code':["vendor code", "vendor no", "vendor"], 'vendor_name':["vendor name", "vendor"], 
+                'purchase_order':["purchase order", "po no", "related po"], 'order_type':["order type", "po type", "po"]};
 
-const filter_fields: FieldMap = {'type_filter': ['order_type'], 'currency_filter': ['unit_currency'], 'vendor_filter': ['vendor_name']};
+const mandatory: string[] = ['part_number', 'part_description', 'part_quantity', 'vendor_code'];
 
-let selectedSheet: string = null;
+const filter_fields: FieldMap = {'ot_filter': ['order_type'], 'curr_filter': ['unit_currency'], 'vc_filter': ['vendor_code'],
+                                    'pn_filter': ['part_number']};
+
+var acceptedExts = available_formats.join(',');
+var dropzoneText = `${generateExtensionString(available_formats)} uzantılı bir dosya sürükle veya yüklemek için tıkla`;
+
+
 
 ///FLOW ////
+const popupFilter = document.getElementById('popup-filter')!;
+const closeFilter = document.getElementById('close-filter')!;
 
-//const information = document.getElementById('info')
-//information.innerText = `This app is using Chrome (v${window.versions.chrome()}), Node.js (v${versions.node()}), and Electron (v${versions.electron()})`;
+closeFilter.addEventListener('click', () => {
+    popupFilter.style.display = 'none';
+});
 
-//const startButton = document.getElementById('start-button');
-//startButton.innerHTML = `Import the sheet boss`;
-const chooseText = document.getElementById('choose-text');
+popupFilter.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    try{
+
+        let selectedSheet = document.getElementById('filter-sheet-table').getElementsByClassName('bg-success')[0].id;
+        let selectedCol = (document.querySelector(`#filterpicker`) as HTMLInputElement).value;
+        let selectedRadio = (document.querySelector('input[name="radio-filter"]:checked') as HTMLInputElement).id;
+        
+        const filterMap: FieldMap = { };
+        filterMap['sheet_name'] = [selectedSheet];
+        filterMap['column_name'] = [selectedCol];
+        filterMap['is_include'] = [selectedRadio];
+
+        let pn_col_main = ((document.querySelector(`#part_number`) as HTMLInputElement).value);
+
+        let unfilteredVals = await window.versions.filter_from_table(filterMap, pn_col_main);
+        unfilteredVals.forEach(function(val) {
+            document.getElementById(`${val}`).setAttribute("selected", "selected");
+        });
+
+        $('.selectpicker').each(function() {
+            (<any>$( this )).selectpicker('refresh');
+        });
+
+        setAnalysisMessage(AnalysisStage.SelectFields, {canAnalyze: true, message: "Total of " + unfilteredVals.length + " pn selected for analysis", infoClass:"text-info"});
+    }
+    catch{
+        setAnalysisMessage(AnalysisStage.SelectFields, {canAnalyze: true, message: "Please fill all fields before submit", infoClass:"text-danger"});
+    }
+    
+    popupFilter.style.display = 'none';
+
+});
+
+/*const chooseText = document.getElementById('choose-text');
 let upload_name = "upload_link";
-chooseText.innerHTML = `Press <span name="${upload_name}" class="link-primary" href="#" >boss</span> to start. Only files with extensions ${generateExtensionString(available_formats)} are allowed.`
-
-let upload_links = document.getElementsByName(upload_name);
-for(let i = 0; i < upload_links.length; i++){
-    upload_links[i].addEventListener("click", (e:Event) => file_upload());
-}
+chooseText.innerHTML = `Press <span name="${upload_name}" class="link-primary" href="#" >boss</span> to start.${dropzoneText}`*/
 
 setAnalysisMessage(AnalysisStage.Import);
+// FLOW END //
 
-//// FUNCTIONS
 
 
-async function file_upload() {
-    const sheets = await window.versions.file_upload();
+
+
+
+
+
+//// FUNCTIONS /////
+
+async function file_upload(filePath: string, xlsxType = 'main') {
+
+    const sheets = await window.versions.xlsx_upload(xlsxType === 'main' ? 0 : 1, filePath);
     if (sheets == null)
     {
         return;
     }
-    draw_sheet_cols(sheets);
+
+    if(xlsxType == 'main'){
+        draw_sheet_cols(sheets, 'sheet-table', mainSheetSelected);
+
+    }else if(xlsxType == 'pn_filter'){
+        draw_sheet_cols(sheets, 'filter-sheet-table', pnFilterSheetSelected);
+    }
+    else if(xlsxType == 'vc_filter'){
+        draw_sheet_cols(sheets, 'filter-sheet-table', vendorFilterSheetSelected);
+    }
 }
 
-function draw_sheet_cols(sheet_names: string[]){
-    const sheetTable = document.getElementById('sheet-table');
+function draw_sheet_cols(sheet_names: string[], table_name: string, onselect: (selected: string) => void){
+    const sheetTable = document.getElementById(table_name);
     
     let sheetDivs = sheetTable.children;
     while (sheetDivs.length > 0) {
         sheetDivs[0].remove();
     }
 
-    var id = 0;
     sheet_names.forEach(name => {
         const sheetDiv = document.createElement("div");
-        sheetDiv.classList.add("col", "col-lg-4", "text-center"); // "bg-success", "text-white"
+        sheetDiv.classList.add("col", "col-lg-4", "text-center", "vega-sheet-select");
         sheetDiv.textContent = `${name}`;
-        sheetDiv.id = `${id}`;
+        sheetDiv.id = `${name}`;
         // add an onclick handler to the sheet div
         sheetDiv.onclick = async () => {
+            let selected: string = null;
 
             if(sheetDiv.classList.contains("bg-success"))
             {
                 sheetDiv.classList.remove("bg-success", "text-white");
-                selectedSheet = null;
+                selected = null;
             }
             else
             {
                 // set the selectedSheet variable to the current sheet number
-                selectedSheet = name;
+                selected = name;
                 // update the class of all sheet divs
-                const sheetDivs = document.querySelectorAll("#sheet-table > .col");
+                const sheetDivs = document.querySelectorAll("#" + table_name + " > .col");
                 sheetDivs.forEach(div => {
                     div.classList.remove("bg-success", "text-white");
                 });
                 sheetDiv.classList.add("bg-success", "text-white");
+                await onselect(selected);
             }
-            
-            await draw_analysis_options(selectedSheet);
-            let allSet = await this.draw_analysis_filters(selectedSheet);
-            setAnalysisMessage(AnalysisStage.SelectFields, {canAnalyze: allSet});
         };
 
         // append the sheet div to the sheet table
         sheetTable.appendChild(sheetDiv);
-    
-        id++;
     });
 
     setAnalysisMessage(AnalysisStage.SelectSheet);
 }
 
+async function mainSheetSelected(selected: string){
+    await draw_analysis_options(selected);
+    analysisFieldChanged(selected);
+}
+
+async function pnFilterSheetSelected(selected: string){
+    await draw_filter_by_table(selected, 'part_number');
+    //analysisFieldChanged(selected);
+}
+
+async function vendorFilterSheetSelected(selected: string){
+    await draw_filter_by_table(selected, 'vendor_code');
+    //analysisFieldChanged(selected);
+}
+
 const draw_analysis_options = async (selectedSheet: string) => {
-    const columns = await window.versions.get_columns(selectedSheet);
+    const columns = await window.versions.get_columns_on_sheet(0, selectedSheet); // 0 for main excel table
     
     const fieldSelect = document.getElementById('analysis-field-selection');
+    fieldSelect.innerHTML = "";
 
-    let htmlFieldSelect = '';
-    htmlFieldSelect += '<br>';
+    const mandatoryDiv = document.createElement("div");
+    mandatoryDiv.classList.add("parse-options");
+    
+    let mandatoryHeader = document.createElement("h4");
+    mandatoryHeader.textContent = "Zorunlu Kolonlar";
+    mandatoryDiv.appendChild(mandatoryHeader);
 
+    let divider = document.createElement("hr");
+    divider.classList.add("hr-vega");
+    mandatoryDiv.appendChild(divider);
+
+    const optionalDiv = document.createElement("div");
+    optionalDiv.classList.add("parse-options");
+
+    let optionalHeader = document.createElement("h4");
+    optionalHeader.textContent = "Opsiyonel Kolonlar";
+    optionalDiv.appendChild(optionalHeader);
+
+    let divider2 = document.createElement("hr");
+    divider2.classList.add("hr-vega");
+    optionalDiv.appendChild(divider2);
 
     for (let key in select_fields) {
 
-        htmlFieldSelect += '<div  style="width:90%;">';
+        let selectFieldHTML = '<div class="vega-select">';
         
         const text = key.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + ':';
-        htmlFieldSelect += '<label for="' + key + '">' + text + '</label>';
+        selectFieldHTML += '<label for="' + key + '">' + text + '</label>';
         
-        htmlFieldSelect += '<select class="part" onchange="selectFieldChanged()" style="float:right;" aria-label=".form-select-lg example" id="' + key + '" name="' + key + '">';
+        selectFieldHTML += `<select class="selectpicker" onchange="analysisFieldChanged('${selectedSheet}')" style="float:right;" id="` + key + '" name="' + key + '">';
 
         let litteralDiff = 20;
         columns.forEach(c => {
             //const hardCodedName = field.replace('_', ' ');
-            htmlFieldSelect += '<option value="' + c + '"';
+            selectFieldHTML += '<option value="' + c + '"';
             const index = select_fields[key].findIndex((searchTerm: string) => c.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
             if (index !== -1) {
                 let currLitteralDiff = c.length - select_fields[key][index].length;
                 if(currLitteralDiff < litteralDiff){
                     litteralDiff = currLitteralDiff;
-                    htmlFieldSelect += ' selected="selected"';
+                    selectFieldHTML += ' selected="selected"';
                 }
             }
-            htmlFieldSelect += '>' + c + '</option>';
+            selectFieldHTML += '>' + c + '</option>';
         });
 
-        if(4 < litteralDiff){
-            htmlFieldSelect += '<option value="" selected="selected" hidden="hidden">Please select</option>';
+        if(mandatory.includes(key) && 4 < litteralDiff){ //if mandatory field and not looks like any column
+            selectFieldHTML += '<option value="" selected hidden="hidden">Please select</option>';
+        }
+        else if(!mandatory.includes(key)){
+            let didSelected = 4 < litteralDiff ? "selected" : "";
+            selectFieldHTML += '<option value="exclude" ' + didSelected + '>Exclude option</option>';
         }
         
-        htmlFieldSelect += '</select>';
-        htmlFieldSelect += '</div>'
-        htmlFieldSelect += '<br>';
-    }
-    htmlFieldSelect += '<br>';
+        selectFieldHTML += '</select>';
+        selectFieldHTML += '</div>'
 
-    fieldSelect.innerHTML = htmlFieldSelect;
+        if(mandatory.includes(key)){
+            mandatoryDiv.innerHTML += selectFieldHTML;
+        }
+        else{
+            optionalDiv.innerHTML += selectFieldHTML;
+        }
+
+    }
+    
+    fieldSelect.appendChild(mandatoryDiv);
+    //fieldSelect.appendChild(document.createElement("hr"))
+    fieldSelect.appendChild(optionalDiv);
 };
 
-const draw_analysis_filters = async () => {
+const draw_analysis_filters = async (selectedSheet: string) => {
     const analysisFilters = document.getElementById('analysis-field-filters');
-    let htmlFilters = '';
-    htmlFilters += '<div class="row justify-content-md-center">';
+    analysisFilters.innerHTML = "";
+
+    const filterDiv = document.createElement("div");
+    filterDiv.classList.add("filter-options");
+
+    let filterHeader = document.createElement("h4");
+    filterHeader.textContent = "Filtreler";
+    filterDiv.appendChild(filterHeader);
+    
+    let divider = document.createElement("hr");
+    divider.classList.add("hr-vega");
+    filterDiv.appendChild(divider);
 
     let allSet = true;
+    //document.createElement('select');
 
     for (let fieldKey in filter_fields) {
         
-        let filterSelect = filter_fields[fieldKey];
+        let htmlFilter = '';
+        let filterSelect = filter_fields[fieldKey][0];
 
-        let selected = (document.querySelector('#' + filterSelect + ' option:checked') as HTMLSelectElement).value;
-        htmlFilters += '<div class="col col-md-4">';
+        htmlFilter += '<div class="vega-select">';
+
+        let optionSelected = (document.querySelector('#' + filterSelect + ' option:checked') as HTMLSelectElement).value;
         const text = fieldKey.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + ':';
-        htmlFilters += '<label for="' + fieldKey + '">' + text + '</label>';
-        htmlFilters += '<br>';
+        htmlFilter += '<label for="' + fieldKey + '" class="form-label select-label">' + text + '</label>';
 
-        let disabled = (selected) ? '' : 'disabled';
-        htmlFilters += '<select class="part-filter form-select"  multiple aria-label="multiple select example"' + disabled + ' id="' + fieldKey + '" name="' + fieldKey + '">';
+        let disabled = (!optionSelected || optionSelected === 'exclude') ? 'disabled' : '';
+        htmlFilter += '<select class="selectpicker" multiple data-live-search="true" style="float:right;" ' + disabled + ' id="' + fieldKey + '" name="' + fieldKey + '">';
 
-        if (selected) {
-
-            let columnValues = await window.versions.get_column_values_unique(selectedSheet, selected);
-            columnValues.forEach(c => {
+        if (!disabled) {
+            let columnValues = await window.versions.get_values_on_column(0, selectedSheet, optionSelected);//0 for main excel table
+            let distinctValues = Array.from(new Set(columnValues));
+            distinctValues.forEach(c => {
                 //const hardCodedName = field.replace('_', ' ');
-                htmlFilters += '<option value="' + c + '"';
-                htmlFilters += '>' + c + '</option>';
+                htmlFilter += '<option value="' + c + '" id="' + c + '"';
+                htmlFilter += '>' + c + '</option>';
             });
         }
-        else {
+        else if(mandatory.includes(filterSelect)){
             allSet = false;
         }
         
-        htmlFilters += '</select>';
-        htmlFilters += '</div>';
-    }
-    htmlFilters += '</div>';
-    analysisFilters.innerHTML = htmlFilters;
+        htmlFilter += '</select>';
+        htmlFilter += '</div>'
 
+        filterDiv.innerHTML += htmlFilter;
+    }
+    
+    if(allSet){
+        let tableFilterButton = document.createElement("button");
+        tableFilterButton.classList.add("btn", "btn-info");
+        tableFilterButton.setAttribute("type", "button");
+        tableFilterButton.setAttribute("onclick", "filter_from_sheet('pn')");
+        tableFilterButton.setAttribute("id", "filter_pns");
+        tableFilterButton.textContent = "Filter from PNs";
+
+        let filterText = document.createElement("p");
+        filterText.textContent = "Filter multiple part numbers from a loaded table. Exclude or include multiple Part Numbers";
+        
+        tableFilterButton.appendChild(filterText);
+        filterDiv.appendChild(tableFilterButton);
+    }
+
+    analysisFilters.appendChild(filterDiv);
+
+    /*let buttonHtml = `<div> \
+        &emsp;<button class="btn btn-info" type="button" onclick="filter_from_sheet('pn')" id="filter_pns">Filter from PNs</button> \
+        &emsp;<button class="btn btn-info" type="button" onclick="filter_from_sheet('vendor')" id="filter_vendors">Filter from Vendors</button> \
+            </div>`;*/
     return allSet;
 }
 
-async function selectFieldChanged(){
-    var allSet = await draw_analysis_filters();
+async function analysisFieldChanged(selectedSheet: string){
+    var allSet = await draw_analysis_filters(selectedSheet);
+    $('.selectpicker').each(function() {
+        (<any>$( this )).selectpicker('refresh');
+    });
     setAnalysisMessage(AnalysisStage.SelectFields, {canAnalyze: allSet});
 }
 
@@ -211,8 +341,8 @@ const parts_submit = async () => {
 
         parts_map[key].push((document.querySelector(`#${key}`) as HTMLInputElement).value);
     }
-    parts_map['sheet_name'] = [];
-    parts_map['sheet_name'].push(selectedSheet);   
+
+    parts_map["sheet_name"] = [getSelectedMainTable()];
 
     for (let key in filter_fields) {
         
@@ -238,22 +368,86 @@ const parts_submit = async () => {
         
     }
     else{
-        setAnalysisMessage(AnalysisStage.SelectFields, {message: "There is an error somewhere.. May be change select fields ?", infoClass:"text-danger"});
+        setAnalysisMessage(AnalysisStage.SelectFields, {canAnalyze: true, message: "There is an error somewhere.. May be change select fields ?", infoClass:"text-danger"});
     }
 }
 
-
 const analysis_save = async () => {
-    const saveResult = await window.versions.save_results();
+
+    let selectedName = getSelectedMainTable();
+    
+    const saveResult = await window.versions.save_results(selectedName);
+    console.log(saveResult);
     if(saveResult.length > 1){
         let analysis_text = "Saved to " + saveResult + " successfully";
         setAnalysisMessage(AnalysisStage.Exported, {message: analysis_text, infoClass:"text-success"});
 
     }
     else{
-        let analysis_text = "Save to " + saveResult + " unsuccessfull :((";
+        let analysis_text = "Save unsuccessfull :(";
         setAnalysisMessage(AnalysisStage.Exported, {message: analysis_text, infoClass:"text-danger"});
+    }
+}
 
+
+const draw_filter_by_table = async (selectedFilterSheet: string, filterType: string) => {
+    const filterMessages = document.getElementById('filter_col_messsage');
+    let filterColHtml = '';
+    const filterCols = await window.versions.get_columns_on_sheet(1, selectedFilterSheet); // 1 for filter table
+
+    filterColHtml += '<div>';
+    const text = filterType.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    filterColHtml += '<label for="' + filterType + '">' + text + ':</label>';
+        
+    filterColHtml += '<select class="filterpicker" id="filterpicker" name="filterpicker">';
+
+    let litteralDiff = 20;
+    filterCols.forEach(c => {
+        //const hardCodedName = field.replace('_', ' ');
+        filterColHtml += '<option value="' + c + '"';
+        const index = select_fields[filterType].findIndex((searchTerm: string) => c.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
+        if (index !== -1) {
+            let currLitteralDiff = c.length - select_fields[filterType][index].length;
+            if(currLitteralDiff < litteralDiff){
+                litteralDiff = currLitteralDiff;
+                filterColHtml += ' selected="selected"';
+            }
+        }
+        filterColHtml += '>' + c + '</option>';
+    });
+
+    if(4 < litteralDiff){
+        filterColHtml += '<option value="" selected="selected" hidden="hidden">Please select</option>';
+    }
+
+    filterColHtml += '</select>';
+    filterColHtml += '</div>';
+    filterColHtml += '<div>';
+    filterColHtml += '<div class="form-check"> \
+                    <input class="form-check-input" type="radio" name="radio-filter" id="include" checked> \
+                    <label class="form-check-label" for="include">Include all same ' + text + '</label>' + '\
+                    </div>';
+
+    filterColHtml += '<div class="form-check"> \
+                    <input class="form-check-input" type="radio" name="radio-filter" id="exclude"> \
+                    <label class="form-check-label" for="exclude">Exclude all same ' + text + '</label>' + '\
+                    </div>';
+    filterColHtml += '</div>';
+
+    filterMessages.innerHTML = filterColHtml;
+
+    (<any>$('.filterpicker')).selectpicker('refresh');
+}
+
+const filter_from_sheet = async (filterType: string) => {
+
+    popupFilter.style.display = 'block';
+    
+    if (filterType === 'pn'){
+
+    }
+    else if(filterType === 'vendor'){
+        
     }
 }
 
@@ -275,7 +469,11 @@ function generateExtensionString(extensions : string[]) {
     return extensions.map(ext => ext.replace(/^\./, '')).join(', ');
 }
 
-
+function getSelectedMainTable(){
+    let sheetTable = document.getElementById('sheet-table');
+    let selected = sheetTable.querySelector('.bg-success');
+    return selected.textContent ?? "";
+}
 
 function setAnalysisMessage(currentStage: string, {message = '', infoClass = '', canAnalyze = false} = {}){
 
@@ -287,53 +485,55 @@ function setAnalysisMessage(currentStage: string, {message = '', infoClass = '',
     let firstButton = '';
     let secondButton = '';
     let thirdLine = '';
-    console.log("currentStage : " + currentStage);
-    console.log("canAnalyze : " + canAnalyze);
 
     switch (currentStage) {
         case AnalysisStage.Import:
-            firstLine = 'File sececen koyacan zor diil..';
+            firstLine = 'Please select or drop a excel file to dropdown';
             secondClass = 'text-success';
-            secondLine = 'You can do it, I believe in you!!';
+            secondLine = '';
             break;
         case AnalysisStage.SelectSheet:
-            firstLine = 'Select a sheet (from loaded excel) for analysis';
+            firstLine = 'Select a table (from loaded excel) for analysis';
             secondClass = 'text-success';
-            secondLine = 'You can do it!!';
+            secondLine = '';
             break;
         case AnalysisStage.SelectFields:
-            firstLine = 'Select the fields for analysis. Fields are set from the first row of loaded Excel Sheet.';
+            firstLine = 'Select the fields for analysis. Fields are set from the first row of loaded Excel table.';
             
             if (message != ''){
                 secondLine = message;
                 secondClass = infoClass;
             }
             else{
-                secondLine = '!! Check if the auto placed fields are correct dont be lazy..';
+                secondLine = '!!! Check if the auto placed fields are correct !!!';
                 secondClass = 'text-danger';
             }
             
             if (canAnalyze){
-                thirdLine = '<span style="float: right;">All fields are selected. Select filters if you like. <br><span class="small text-warning">Filters not guaranteed. Pay money for guarantee </span></span>';
-                firstButton = '<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>';
+                thirdLine = '<span style="float: right;">All fields are selected. Select filters if you like. <br><span class="text-warning">!!Filters and optional colons are not tested in detail!!</span></span>';
+                firstButton = `<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>`;
             }
             break;
         case AnalysisStage.Analyzed:
-            firstLine = 'You can now press save analysis to export Sheet';
+            firstLine = 'You can now press save analysis to export Table';
             secondClass = 'text-success';
             secondLine = message;
-            firstButton = '<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>';
+            firstButton = `<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>`;
             secondButton = '<button class="btn btn-secondary" onclick="analysis_save()" type="button">Save Analysis</button>';
             break;
         case AnalysisStage.Exported:
-            firstLine = 'Wow';
+            if(infoClass.includes('success'))
+            {
+                firstLine = '';
+            }
+            //firstLine = 'Save is success!!';
             secondClass = infoClass;
             secondLine = message;
-            firstButton = '<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>';
+            firstButton = `<button class="btn btn-success" type="button" onclick="parts_submit()" id="analyse_button">Analyse Parts</button>`;
             secondButton = '<button class="btn btn-secondary" onclick="analysis_save()" type="button">Save Analysis</button>';
             break;
         default:
-            firstLine = 'Dayi bir sikinti var burada';
+            firstLine = 'ERROR!!';
             secondClass = 'text-danger';
             break;
       }
