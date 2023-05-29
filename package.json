@@ -28,7 +28,7 @@
     "@electron-forge/maker-rpm": "^6.0.5",
     "@electron-forge/maker-squirrel": "^6.0.5",
     "@electron-forge/maker-zip": "^6.0.5",
-    "@popperjs/core": "^2.11.7",
+    "@popperjs/core": "^2.11.8",
     "@types/bootstrap": "^5.2.6",
     "@types/bootstrap-select": "^1.13.4",
     "@types/jquery": "^3.5.16",
