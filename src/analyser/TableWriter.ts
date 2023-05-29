@@ -251,15 +251,21 @@ export class TableWriter {
 function convertToDate(dateString: string): Date {
     const parts = dateString.split(" ");
     const dateParts = parts[0].split(".");
-    const timeParts = parts[1].split(":");
     
     const day = parseInt(dateParts[0]);
     const month = parseInt(dateParts[1]) - 1; // Subtract 1 from month since it's zero-based in JavaScript
     const year = parseInt(dateParts[2]);
     
-    const hours = parseInt(timeParts[0]);
-    const minutes = parseInt(timeParts[1]);
-    const seconds = parseInt(timeParts[2]);
+    const hours = 0;
+    const minutes = 0;
+    const seconds = 0;
+    if(parts[1])
+    {
+        const timeParts = parts[1].split(":");
+        const hours = parseInt(timeParts[0]);
+        const minutes = parseInt(timeParts[1]);
+        const seconds = parseInt(timeParts[2]);
+    }
     
     return new Date(year, month, day, hours, minutes, seconds);
   }
