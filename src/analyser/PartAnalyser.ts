@@ -54,6 +54,9 @@ export class PartAnalyser extends TableAnalyser{
 
         });
         
+        this.analysisResult.parts.sort((part1: PartAnalysisResult, part2: PartAnalysisResult) => 
+                                        part2.quantities.reduce((a,b) => a+b, 0) - part1.quantities.reduce((a,b) => a+b, 0));
+
         this.analysisResult.uniqueVendorCount = Object.keys(this.analysisResult.parts.reduce((vendors, part) => ({ ...vendors, ...part.vendors }), {})).length;
         //this.getUniqueValuesOnColumn(Number(this.getColumnNumberOfField(fields.vendor.vendorCode))).length;
         this.analysisResult.uniquePartCount = this.analysisResult.parts.length;// Object.keys(uniquePNs).length;

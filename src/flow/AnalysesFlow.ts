@@ -23,33 +23,6 @@ export class AnalysesFlow{
 
     WorkbookUpload = async function (wbtype: workbookType, filePath: string): Promise<boolean> {
       
-      /*const result = await dialog.showOpenDialog({
-        title: 'Select a file',
-        properties: ['openFile'],
-        filters: [
-          { name: 'Spreadsheets', extensions: ['xlsx', 'csv'] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
-      }).then(async (result: Electron.OpenDialogReturnValue) => {
-
-        if(result.filePaths.length == 0){
-          console.log('empty file path');
-          // Show an alert dialog box
-          dialog.showMessageBoxSync({
-            type: 'warning',
-            message: 'if you gonna do some shit then do it',
-            title: 'bitch please..',
-            buttons: ['OK!', 'Sorry..']
-          });
-          return null;
-        }
-        var filePath = result.filePaths[0];
-        const extension = path.extname(filePath);
-        await this.parser.parse(filePath, extension);
-      }).catch((err: Error) => {
-        console.log('Error:', err);
-      })*/
-      
       this.filePath = filePath;
       const extension = path.extname(this.filePath);
 
@@ -142,25 +115,6 @@ export class AnalysesFlow{
         });
         return "";
       }
-      /*const options: Electron.SaveDialogOptions = {
-        title: 'Save File',
-        defaultPath: defaultPath, // Specify a default file name and extension
-        filters: [{ name: 'Excel', extensions: ['xlsx'] }] // Specify the file types that should be shown in the dialog
-      };
-      
-      const { filePath, canceled } = await dialog.showSaveDialog(options);
-      if (!canceled && filePath) {
-        // The user selected a file path, so you can save the file to that location
-        const saveRes = await writer.saveWorkbook(filePath);
-        if(!saveRes){
-          dialog.showMessageBoxSync({
-            type: 'error',
-            message: 'Kayıt başarısız, excel tablosu açık olabilir mi?',
-            title: 'Save error',
-            buttons: ['OK']
-          });
-        }
-      }*/
 
       return String(this.filePath);
     }
